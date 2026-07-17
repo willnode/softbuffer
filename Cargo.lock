@@ -1474,7 +1474,6 @@ dependencies = [
  "rand",
  "raw-window-handle",
  "rayon",
- "redox_syscall",
  "rustix",
  "tiny-xlib",
  "tracing",
