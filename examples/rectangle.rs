@@ -49,7 +49,7 @@ fn main() {
         }
 
         match event {
-            WindowEvent::Resized(size) => {
+            WindowEvent::SurfaceResized(size) => {
                 let Some(surface) = surface else {
                     tracing::error!("Resized fired before Resumed or after Suspended");
                     return;
@@ -89,7 +89,7 @@ fn main() {
                 event:
                     KeyEvent {
                         state: ElementState::Pressed,
-                        logical_key: Key::Named(NamedKey::Space),
+                        logical_key: Key::Named(NamedKey::Enter),
                         ..
                     },
                 ..

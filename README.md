@@ -104,7 +104,7 @@ enum AppState {
 }
 
 impl ApplicationHandler for App {
-    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+    fn new_events(&mut self, event_loop: &dyn ActiveEventLoop, cause: StartCause) {
         if let StartCause::Init = cause {
             // Create window on startup.
             let window_attrs = Window::default_attributes();
@@ -117,7 +117,7 @@ impl ApplicationHandler for App {
         }
     }
 
-    fn resumed(&mut self, _event_loop: &ActiveEventLoop) {
+    fn resumed(&mut self, _event_loop: &dyn ActiveEventLoop) {
         // Create or re-create the surface.
         let AppState::Suspended { window } = &mut self.state else {
             unreachable!("got resumed event while not suspended");
@@ -126,7 +126,7 @@ impl ApplicationHandler for App {
             Surface::new(&self.context, window.clone()).expect("failed creating surface");
 
         // TODO: https://github.com/rust-windowing/softbuffer/issues/106
-        let size = window.inner_size();
+        let size = window.outer_size();
         if let (Some(width), Some(height)) =
             (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
         {
@@ -137,7 +137,7 @@ impl ApplicationHandler for App {
         self.state = AppState::Running { surface };
     }
 
-    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+    fn suspended(&mut self, _event_loop: &dyn ActiveEventLoop) {
         // Drop the surface.
         let AppState::Running { surface } = &mut self.state else {
             unreachable!("got resumed event while not running");
@@ -148,7 +148,7 @@ impl ApplicationHandler for App {
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
         event: WindowEvent,
     ) {
@@ -161,7 +161,7 @@ impl ApplicationHandler for App {
         }
 
         match event {
-            WindowEvent::Resized(size) => {
+            WindowEvent::SurfaceResized(size) => {
                 if let (Some(width), Some(height)) =
                     (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
                 {

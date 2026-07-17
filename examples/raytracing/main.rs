@@ -34,8 +34,8 @@ fn main() {
             let mut surface = Surface::new(&context, window.clone()).unwrap();
             surface
                 .resize(
-                    NonZeroU32::new(window.inner_size().width).unwrap(),
-                    NonZeroU32::new(window.inner_size().height).unwrap(),
+                    NonZeroU32::new(window.outer_size().width).unwrap(),
+                    NonZeroU32::new(window.outer_size().height).unwrap(),
                 )
                 .unwrap();
             let game = Game::new();
@@ -48,7 +48,7 @@ fn main() {
         }
 
         match event {
-            WindowEvent::Resized(size) => {
+            WindowEvent::SurfaceResized(size) => {
                 let Some((surface, _)) = surface else {
                     tracing::error!("Resized fired before Resumed or after Suspended");
                     return;
@@ -128,7 +128,7 @@ fn main() {
         }
     })
     .with_device_event_handler(|_window, surface, event, _elwt| {
-        if let DeviceEvent::MouseMotion { delta } = event {
+        if let DeviceEvent::PointerMotion { delta } = event {
             let Some((_, game)) = surface else {
                 tracing::error!("CursorMoved fired before Resumed or after Suspended");
                 return;

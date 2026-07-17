@@ -9,9 +9,9 @@ use winit::window::{Window, WindowAttributes, WindowId};
 
 /// Run a Winit application.
 #[allow(unused_mut)]
-pub(crate) fn run_app(event_loop: EventLoop<()>, mut app: impl ApplicationHandler<()> + 'static) {
+pub(crate) fn run_app(event_loop: EventLoop, mut app: impl ApplicationHandler + 'static) {
     #[cfg(not(target_family = "wasm"))]
-    event_loop.run_app(&mut app).unwrap();
+    event_loop.run_app(app).unwrap();
 
     #[cfg(target_family = "wasm")]
     winit::platform::web::EventLoopExtWebSys::spawn_app(event_loop, app);
@@ -20,9 +20,9 @@ pub(crate) fn run_app(event_loop: EventLoop<()>, mut app: impl ApplicationHandle
 /// Create a window from a set of window attributes.
 #[allow(dead_code)]
 pub(crate) fn make_window(
-    elwt: &ActiveEventLoop,
+    elwt: &dyn ActiveEventLoop,
     f: impl FnOnce(WindowAttributes) -> WindowAttributes,
-) -> Rc<Window> {
+) -> Rc<Box<dyn Window>> {
     let attributes = f(WindowAttributes::default());
     #[cfg(target_family = "wasm")]
     let attributes = winit::platform::web::WindowAttributesExtWebSys::with_append(attributes, true);
@@ -69,8 +69,8 @@ pub(crate) struct WinitAppBuilder<T, S, Init, InitSurface> {
 
 impl<T, S, Init, InitSurface> WinitAppBuilder<T, S, Init, InitSurface>
 where
-    Init: FnMut(&ActiveEventLoop) -> T,
-    InitSurface: FnMut(&ActiveEventLoop, &mut T) -> S,
+    Init: FnMut(&dyn ActiveEventLoop) -> T,
+    InitSurface: FnMut(&dyn ActiveEventLoop, &mut T) -> S,
 {
     /// Create with an "init" closure.
     pub(crate) fn with_init(init: Init, init_surface: InitSurface) -> Self {
@@ -92,11 +92,11 @@ where
         Init,
         InitSurface,
         F,
-        impl FnMut(&mut T, Option<&mut S>, DeviceEvent, &ActiveEventLoop),
-        impl FnMut(&mut T, Option<&mut S>, &ActiveEventLoop),
+        impl FnMut(&mut T, Option<&mut S>, DeviceEvent, &dyn ActiveEventLoop),
+        impl FnMut(&mut T, Option<&mut S>, &dyn ActiveEventLoop),
     >
     where
-        F: FnMut(&mut T, Option<&mut S>, WindowId, WindowEvent, &ActiveEventLoop),
+        F: FnMut(&mut T, Option<&mut S>, WindowId, WindowEvent, &dyn ActiveEventLoop),
     {
         WinitApp::new(
             self.init,
@@ -111,11 +111,11 @@ where
 impl<T, S, Init, InitSurface, Handler, DeviceEventHandler, AboutToWaitHandler>
     WinitApp<T, S, Init, InitSurface, Handler, DeviceEventHandler, AboutToWaitHandler>
 where
-    Init: FnMut(&ActiveEventLoop) -> T,
-    InitSurface: FnMut(&ActiveEventLoop, &mut T) -> S,
-    Handler: FnMut(&mut T, Option<&mut S>, WindowId, WindowEvent, &ActiveEventLoop),
-    DeviceEventHandler: FnMut(&mut T, Option<&mut S>, DeviceEvent, &ActiveEventLoop),
-    AboutToWaitHandler: FnMut(&mut T, Option<&mut S>, &ActiveEventLoop),
+    Init: FnMut(&dyn ActiveEventLoop) -> T,
+    InitSurface: FnMut(&dyn ActiveEventLoop, &mut T) -> S,
+    Handler: FnMut(&mut T, Option<&mut S>, WindowId, WindowEvent, &dyn ActiveEventLoop),
+    DeviceEventHandler: FnMut(&mut T, Option<&mut S>, DeviceEvent, &dyn ActiveEventLoop),
+    AboutToWaitHandler: FnMut(&mut T, Option<&mut S>, &dyn ActiveEventLoop),
 {
     /// Create a new application.
     pub(crate) fn new(
@@ -143,7 +143,7 @@ where
         about_to_wait: F,
     ) -> WinitApp<T, S, Init, InitSurface, Handler, DeviceEventHandler, F>
     where
-        F: FnMut(&mut T, Option<&mut S>, &ActiveEventLoop),
+        F: FnMut(&mut T, Option<&mut S>, &dyn ActiveEventLoop),
     {
         WinitApp::new(
             self.init,
@@ -161,7 +161,7 @@ where
         device_event: F,
     ) -> WinitApp<T, S, Init, InitSurface, Handler, F, AboutToWaitHandler>
     where
-        F: FnMut(&mut T, Option<&mut S>, DeviceEvent, &ActiveEventLoop),
+        F: FnMut(&mut T, Option<&mut S>, DeviceEvent, &dyn ActiveEventLoop),
     {
         WinitApp::new(
             self.init,
@@ -176,20 +176,21 @@ where
 impl<T, S, Init, InitSurface, Handler, DeviceEventHandler, AboutToWaitHandler> ApplicationHandler
     for WinitApp<T, S, Init, InitSurface, Handler, DeviceEventHandler, AboutToWaitHandler>
 where
-    Init: FnMut(&ActiveEventLoop) -> T,
-    InitSurface: FnMut(&ActiveEventLoop, &mut T) -> S,
-    Handler: FnMut(&mut T, Option<&mut S>, WindowId, WindowEvent, &ActiveEventLoop),
-    DeviceEventHandler: FnMut(&mut T, Option<&mut S>, DeviceEvent, &ActiveEventLoop),
-    AboutToWaitHandler: FnMut(&mut T, Option<&mut S>, &ActiveEventLoop),
+    Init: FnMut(&dyn ActiveEventLoop) -> T,
+    InitSurface: FnMut(&dyn ActiveEventLoop, &mut T) -> S,
+    Handler: FnMut(&mut T, Option<&mut S>, WindowId, WindowEvent, &dyn ActiveEventLoop),
+    DeviceEventHandler: FnMut(&mut T, Option<&mut S>, DeviceEvent, &dyn ActiveEventLoop),
+    AboutToWaitHandler: FnMut(&mut T, Option<&mut S>, &dyn ActiveEventLoop),
 {
-    fn resumed(&mut self, el: &ActiveEventLoop) {
+    fn resumed(&mut self, el: &dyn ActiveEventLoop) {
+        // no longer inited as of 0.31
         debug_assert!(self.state.is_none());
         let mut state = (self.init)(el);
         self.surface_state = Some((self.init_surface)(el, &mut state));
         self.state = Some(state);
     }
 
-    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+    fn suspended(&mut self, _event_loop: &dyn ActiveEventLoop) {
         let surface_state = self.surface_state.take();
         debug_assert!(surface_state.is_some());
         drop(surface_state);
@@ -197,7 +198,7 @@ where
 
     fn window_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        event_loop: &dyn ActiveEventLoop,
         window_id: WindowId,
         event: WindowEvent,
     ) {
@@ -206,7 +207,7 @@ where
         (self.event)(state, surface_state, window_id, event, event_loop);
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &dyn ActiveEventLoop) {
         if let Some(state) = self.state.as_mut() {
             let surface_state = self.surface_state.as_mut();
             (self.about_to_wait)(state, surface_state, event_loop);
@@ -215,12 +216,19 @@ where
 
     fn device_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
-        _device_id: DeviceId,
+        event_loop: &dyn ActiveEventLoop,
+        _device_id: Option<DeviceId>,
         event: DeviceEvent,
     ) {
         let state = self.state.as_mut().unwrap();
         let surface_state = self.surface_state.as_mut();
         (self.device_event)(state, surface_state, event, event_loop);
+    }
+
+    fn can_create_surfaces(&mut self, el: &dyn ActiveEventLoop) {
+        debug_assert!(self.state.is_none());
+        let mut state = (self.init)(el);
+        self.surface_state = Some((self.init_surface)(el, &mut state));
+        self.state = Some(state);
     }
 }

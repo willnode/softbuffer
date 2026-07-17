@@ -20,7 +20,7 @@ fn main() {
     let app = util::WinitAppBuilder::with_init(
         move |elwt| {
             util::make_window(elwt, |w| {
-                w.with_inner_size(winit::dpi::PhysicalSize::new(width, height))
+                w.with_surface_size(winit::dpi::PhysicalSize::new(width, height))
             })
         },
         move |_elwt, window| {

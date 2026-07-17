@@ -26,7 +26,7 @@ fn buffer(c: &mut criterion::Criterion) {
 
             let mut surface = Surface::new(&context, &window).unwrap();
 
-            let size = window.inner_size();
+            let size = window.outer_size();
             surface
                 .resize(
                     NonZeroU32::new(size.width).unwrap(),

@@ -13,7 +13,7 @@ fn main() {
     entry(EventLoop::new().unwrap())
 }
 
-pub(crate) fn entry(event_loop: EventLoop<()>) {
+pub(crate) fn entry(event_loop: EventLoop) {
     let context = Context::new(event_loop.owned_display_handle()).unwrap();
 
     let app = util::WinitAppBuilder::with_init(
@@ -28,7 +28,7 @@ pub(crate) fn entry(event_loop: EventLoop<()>) {
         }
 
         match event {
-            WindowEvent::Resized(size) => {
+            WindowEvent::SurfaceResized(size) => {
                 let Some(surface) = surface else {
                     tracing::error!("Resized fired before Resumed or after Suspended");
                     return;

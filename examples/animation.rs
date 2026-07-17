@@ -39,7 +39,7 @@ fn main() {
         }
 
         match event {
-            WindowEvent::Resized(size) => {
+            WindowEvent::SurfaceResized(size) => {
                 let Some(surface) = surface else {
                     tracing::error!("Resized fired before Resumed or after Suspended");
                     return;

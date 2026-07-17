@@ -64,7 +64,7 @@ fn main() {
         }
 
         match event {
-            WindowEvent::Resized(size) => {
+            WindowEvent::SurfaceResized(size) => {
                 let Some(surface) = surface else {
                     tracing::error!("Resized fired before Resumed or after Suspended");
                     return;
@@ -147,7 +147,7 @@ fn main() {
                 }
 
                 tracing::info!(?alpha_mode, "set alpha");
-                let size = window.inner_size();
+                let size = window.outer_size();
                 let width = NonZeroU32::new(size.width).unwrap();
                 let height = NonZeroU32::new(size.height).unwrap();
                 surface.configure(width, height, alpha_mode).unwrap();

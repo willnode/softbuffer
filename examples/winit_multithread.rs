@@ -10,11 +10,11 @@ pub mod ex {
     use winit::event::{KeyEvent, WindowEvent};
     use winit::event_loop::{ControlFlow, EventLoop, OwnedDisplayHandle};
     use winit::keyboard::{Key, NamedKey};
-    use winit::window::Window;
+    use winit::window::{Window, WindowAttributes};
 
     use super::util;
 
-    type Surface = softbuffer::Surface<OwnedDisplayHandle, Arc<Window>>;
+    type Surface = softbuffer::Surface<OwnedDisplayHandle, Arc<dyn Window>>;
 
     fn render_thread(
         do_render: mpsc::Receiver<(Arc<Mutex<Surface>>, NonZeroU32, NonZeroU32)>,
@@ -48,12 +48,12 @@ pub mod ex {
         }
     }
 
-    pub fn entry(event_loop: EventLoop<()>) {
+    pub fn entry(event_loop: EventLoop) {
         let context = Context::new(event_loop.owned_display_handle()).unwrap();
 
         let app = util::WinitAppBuilder::with_init(
             |elwt| {
-                let attributes = Window::default_attributes();
+                let attributes = WindowAttributes::default();
                 #[cfg(target_family = "wasm")]
                 let attributes =
                     winit::platform::web::WindowAttributesExtWebSys::with_append(attributes, true);
@@ -72,10 +72,11 @@ pub mod ex {
             },
             move |_elwt, (window, _start_render, _finish_render)| {
                 tracing::info!("making surface...");
-                Arc::new(Mutex::new(Surface::new(&context, window.clone()).unwrap()))
+                unreachable!();
+                // Arc::new(Mutex::new(Surface::new(&context, window.clone()).unwrap()))
             },
         )
-        .with_event_handler(|state, surface, window_id, event, elwt| {
+        .with_event_handler(|state, surface: Option<&mut Surface>, window_id, event, elwt| {
             let (window, start_render, finish_render) = state;
             elwt.set_control_flow(ControlFlow::Wait);
 
@@ -90,13 +91,13 @@ pub mod ex {
                         return;
                     };
 
-                    let size = window.inner_size();
+                    let size = window.outer_size();
                     tracing::info!("got size: {size:?}");
                     if let (Some(width), Some(height)) =
                         (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
                     {
                         // Start the render and then finish it.
-                        start_render.send((surface.clone(), width, height)).unwrap();
+                        // start_render.send((surface.clone(), width, height)).unwrap();
                         finish_render.recv().unwrap();
                     }
                 }
@@ -122,7 +123,7 @@ pub mod ex {
 #[cfg(target_family = "wasm")]
 mod ex {
     use winit::event_loop::EventLoop;
-    pub(crate) fn entry(_event_loop: EventLoop<()>) {
+    pub(crate) fn entry(_event_loop: EventLoop) {
         panic!("winit_multithreaded doesn't work on WASM")
     }
 }
